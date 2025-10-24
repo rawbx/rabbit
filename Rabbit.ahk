@@ -127,7 +127,14 @@ RabbitMain(args) {
     OnMessage(WM_SETTINGCHANGE, OnColorChange.Bind())
     OnMessage(WM_DWMCOLORIZATIONCOLORCHANGED, OnColorChange.Bind())
     if !RabbitConfig.global_ascii
-        SetTimer(UpdateWinAscii)
+        UpdateWinAscii()
+    DllCall("RegisterShellHookWindow", "Ptr", A_ScriptHwnd)
+    OnMessage(msgId := DllCall("RegisterWindowMessage", "Str", "SHELLHOOK"), (wParam, lParam, *) => (
+        wParam == 0x8004 && ( ; 0x8004(32772): HSHELL_RUDEAPPACTIVATED
+            !CandidateBox.isHidden && (box.Hide(), rime.clear_composition(session_id)),
+            !RabbitConfig.global_ascii && UpdateWinAscii()
+        )
+    ))
 
     OnExit(ExitRabbit.Bind(RabbitGlobals.keyboard_layout))
 }
@@ -146,6 +153,7 @@ ExitRabbit(layout, reason, code) {
         SetDefaultKeyboard(layout)
     TrayTip()
     ToolTip(, , , STATUS_TOOLTIP)
+    DllCall("DeregisterShellHookWindow", "ptr", A_ScriptHwnd)
     if session_id {
         rime.destroy_session(session_id)
         rime.finalize()
